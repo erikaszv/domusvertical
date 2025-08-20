@@ -1,13 +1,17 @@
-# Database Schema – MVP
+# Database Schema – MVP → Production
 
-Tikslas: minimalus modelis, leidžiantis sukurti autentifikaciją, projektų CRUD ir pagrindinį dashboard.
+ATNAUJINTA: 2025-08-20 (pilna transformacija į tikrą sistemą)
+
+Tikslas: Transformuota nuo teorinio modelio į veikiančią DomusVertical property development management sistemą.
 
 ## Lentelės (MVP)
 
 ### users
+
 Pastaba: jei naudojamas Supabase Auth, naudoti jų `auth.users` kaip šaltinį, o aplikacijos profilio duomenis laikyti `user_profiles`.
 
 Stulpeliai (per profilį):
+
 - id (uuid, pk)
 - email (text, unique)
 - first_name (text, optional)
@@ -18,43 +22,48 @@ Stulpeliai (per profilį):
 - updated_at (timestamptz)
 
 ### user_profiles
+
 - id (uuid, pk) – tokia pati kaip auth.user id
 - phone (text)
 - settings (jsonb)
 - created_at, updated_at
 
-### projects
+### projects (IMPLEMENTED ✅)
+
 - id (uuid, pk)
-- owner_id (uuid, fk -> users.id)
-- name (varchar)
-- type (enum: 'house' | 'apartment' | 'renovation')
-- status (enum: 'planning' | 'in_progress' | 'completed' | 'on_hold') default 'planning'
-- address (jsonb) – { street, city, postal_code }
-- budget_planned (numeric)
-- budget_spent (numeric)
+- owner_id (uuid, fk -> users.id, nullable in dev)
+- name (text)
+- description (text)
+- status (enum: 'planning' | 'active' | 'on_hold' | 'completed') default 'planning'
+- budget (numeric)
+- client_id (uuid, fk -> clients.id)
 - start_date (date)
-- planned_end_date (date)
-- created_at, updated_at
+- end_date (date)
+- created_at (timestamptz)
+- updated_at (timestamptz)
 
 Indeksai:
+
 - idx_projects_owner (owner_id)
 - idx_projects_status (status)
 
-### project_stages
+### project_stages (IMPLEMENTED ✅)
+
 - id (uuid, pk)
 - project_id (uuid, fk -> projects.id on delete cascade)
-- name (varchar)
+- name (text)
+- description (text)
 - order_index (int)
-- status (enum: 'not_started' | 'in_progress' | 'completed' | 'blocked') default 'not_started'
-- progress_percentage (int) default 0
-- start_date (date)
-- end_date (date)
-- created_at, updated_at
+- status (enum: 'pending' | 'in_progress' | 'completed') default 'pending'
+- created_at (timestamptz)
+- updated_at (timestamptz)
 
 Unikalumas:
+
 - unique (project_id, order_index)
 
 ### documents (paprastinta)
+
 - id (uuid, pk)
 - project_id (uuid, fk -> projects.id on delete cascade)
 - stage_id (uuid, fk -> project_stages.id, nullable)
@@ -65,15 +74,84 @@ Unikalumas:
 - created_at
 
 ## RLS gairės (Supabase)
+
 - projects: SELECT/UPDATE/DELETE leidžiama tik owner_id arba projekto nariams (MVP – tik owner)
 - project_stages: paveldi per projects
 - documents: paveldi per projects
 
+### clients (IMPLEMENTED ✅)
+
+- id (uuid, pk)
+- owner_id (uuid, fk -> users.id, nullable in dev)
+- name (text)
+- email (text)
+- phone (text)
+- created_at (timestamptz)
+
+Indeksai:
+- idx_clients_created_at (created_at desc)
+
+### tasks (IMPLEMENTED ✅)
+
+- id (uuid, pk)
+- project_id (uuid, fk -> projects.id)
+- stage_id (uuid, fk -> project_stages.id, nullable)
+- title (text)
+- description (text)
+- status (enum: 'todo' | 'in_progress' | 'review' | 'done' | 'blocked') default 'todo'
+- priority (enum: 'low' | 'medium' | 'high' | 'urgent') default 'medium'
+- assigned_to (uuid)
+- due_date (date)
+- completed_at (timestamptz)
+- created_at (timestamptz)
+- updated_at (timestamptz)
+- owner_id (uuid)
+
+Indeksai:
+- idx_tasks_project_id
+- idx_tasks_stage_id
+- idx_tasks_status
+- idx_tasks_assigned_to
+
+### documents (IMPLEMENTED ✅)
+
+- id (uuid, pk)
+- project_id (uuid, fk -> projects.id)
+- name (text)
+- description (text)
+- file_url (text)
+- file_size (bigint)
+- mime_type (text)
+- category (enum: 'general' | 'contract' | 'invoice' | 'permit' | 'design' | 'report' | 'other') default 'general'
+- uploaded_by (uuid)
+- created_at (timestamptz)
+- owner_id (uuid)
+
+Indeksai:
+- idx_documents_project_id
+
+### financial_records (IMPLEMENTED ✅)
+
+- id (uuid, pk)
+- project_id (uuid, fk -> projects.id)
+- type (enum: 'income' | 'expense')
+- category (text)
+- amount (numeric)
+- description (text)
+- date (date)
+- created_at (timestamptz)
+- owner_id (uuid)
+
+Indeksai:
+- idx_financial_records_project_id
+
 Pavyzdiniai policy (pseudo):
+
 - `using ( auth.uid() = owner_id )`
 - `with check ( auth.uid() = owner_id )`
 
 ## Prisma schema (MVP pavyzdys)
+
 ```prisma
 datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
 
@@ -121,14 +199,24 @@ model ProjectStage {
 enum StageStatus { not_started in_progress completed blocked }
 ```
 
-## Migracijų tvarka
-1) Users/UserProfiles (jei reikalinga papildomai prie Supabase)
-2) Projects
-3) ProjectStages
-4) Documents
+## Įgyvendintų migracijų tvarka
+
+1. ✅ 0001_init_projects.sql - projects lentelė + dev RLS + seed data
+2. ✅ 0002_clients.sql - clients lentelė + dev RLS
+3. ✅ 0003_project_stages.sql - project stages lentelė
+4. ✅ 0004_extended_schema.sql - tasks, documents, financial_records + visi indeksai
+
+## Vykdymas
+
+```bash
+# .env.local turi turėti:
+# SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+npm run db:migrate
+```
 
 ## Tolimesni plėtiniai (ne MVP)
-- marketplace_* lentelės
+
+- marketplace\_\* lentelės
 - notifications, activities
 - reviews, materials
-

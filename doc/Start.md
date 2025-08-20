@@ -6,16 +6,16 @@ Techninė Architektūra - Next.js 15, Supabase, tRPC, visa stack
 Duomenų Bazės Modelis - 15+ lentelių su pilnais schemas
 Lietuvos NT Procesų Specifika - Namo statyba (29 etapai!) ir buto renovacija
 Visi Funkcionalumo Moduliai - nuo auth iki AI asistento
-UI/UX Planas - su Isomorphic theme integracija
+UI/UX Planas - su Vuexy (MUI) theme integracija
 Fazinis Kūrimo Planas - savaitė po savaitės, 17 savaičių roadmap
 Integracijų Planas - Lietuvos specifinės + globalios
 Saugumo Reikalavimai - GDPR, encryption, viskas
 Testavimo Strategija - unit, integration, E2E
 DevOps ir Deployment - CI/CD, monitoring, viskas
 
-NTknygele\apps turi 4 folderius, projekta kuriame i NTknygele\apps\isomorphic-starter
+Šis repo jau turi integruotą Vuexy (MUI NextJS) aplikaciją root'e.
 
-visi kiti folderiai imti paruostiem elementam ir pavyzdziam nuo layout iki elementu! Galima naudoti tik juos, isimink butinai. Ir jei ieskosi tikrai rasi.
+Svarbūs katalogai: src/app, src/views, src/components, src/@core, src/@layouts, src/redux-store, src/prisma.
 
 💎 Ypatingi Akcentai:
 
